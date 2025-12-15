@@ -1,3 +1,4 @@
+# main.py
 import cv2
 import pyautogui
 import time
