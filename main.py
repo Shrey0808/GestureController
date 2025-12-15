@@ -37,6 +37,9 @@ def main():
     click_state = {"left": False, "right": False}
     scroll_origin_y = 0 
     
+    # Timer for Drag Logic
+    click_start_time = 0
+    
     # Window
     window_name = "Touch Controller"
     
@@ -108,14 +111,21 @@ def main():
                                 speed = int(-offset / config.SCROLL_SENSITIVITY)
                                 pyautogui.scroll(speed)
                     
-                    # 2. LEFT CLICK / DRAG
+                    # 2. LEFT CLICK / DRAG (UPDATED LOGIC)
                     elif dist_idx_thumb < config.CLICK_DIST:
                         if not click_state["left"]:
+                            # --- CLICK START ---
                             click_state["left"] = True
+                            click_start_time = time.time()  # Start timer
                             pyautogui.mouseDown()
                             mode = "L-CLICK"
-                        elif move_dist > 2.0:
-                            mode = "DRAG"
+                        else:
+                            # --- HOLDING ---
+                            # Only switch to DRAG if > 1 second has passed
+                            if time.time() - click_start_time > 1.0:
+                                mode = "DRAG"
+                            else:
+                                mode = "L-CLICK"
                     
                     # 3. RIGHT CLICK
                     elif dist_mid_thumb < config.CLICK_DIST:
@@ -128,14 +138,19 @@ def main():
                     # 4. RELEASE
                     else:
                         if mode in ["SCROLL", "L-CLICK", "R-CLICK", "DRAG"]: mode = "MOVE"
+                        
+                        # Release Left Click
                         if click_state["left"] and dist_idx_thumb > config.CLICK_DIST + 10:
                             pyautogui.mouseUp()
                             click_state["left"] = False
+                            
+                        # Release Right Click lock
                         if click_state["right"] and dist_mid_thumb > config.CLICK_DIST + 10:
                             click_state["right"] = False
 
                     # --- MOVE MOUSE ---
-                    if mode in ["MOVE", "DRAG", "L-CLICK"]:
+                    # IMPORTANT: Removed "L-CLICK" from list so cursor freezes while clicking (waiting for drag)
+                    if mode in ["MOVE", "DRAG"]:
                         thresh = config.MOTION_THRESHOLD if mode == "MOVE" else 2.0
                         if move_dist > thresh:
                             pyautogui.moveTo(target_x, target_y)
@@ -151,8 +166,8 @@ def main():
                                           hand_center)
             cv2.imshow(window_name, widget_img)
             
-            # Re-assert window on top every frame (optional, helps on some aggressive OS)
-            # cv2.setWindowProperty(window_name, cv2.WND_PROP_TOPMOST, 1)
+            # Re-assert window on top every frame (optional)
+            cv2.setWindowProperty(window_name, cv2.WND_PROP_TOPMOST, 1)
 
             if cv2.waitKey(1) & 0xFF == ord('q'): break
 
